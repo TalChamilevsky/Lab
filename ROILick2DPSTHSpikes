@@ -1,0 +1,710 @@
+import datajoint as dj
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+# dj.config['query_cache'] = os.path.expanduser('.\dj_query_cache')
+# dj.config['display.show_tuple_count'] = False
+dj.config['database.host'] = "datajoint.mesoscale-activity-map.org"
+dj.config['database.user'] = "talch012"
+dj.config['database.password'] = "simple"
+
+conn = dj.conn()
+#conn.set_query_cache(query_cache='main')
+
+
+img= dj.schema('arseny_learning_imaging')
+img= dj.VirtualModule('IMG', 'arseny_learning_imaging')
+#imgframstarttrail= imgframstarttrail1.IMG.FramStartTrail
+
+tracking= dj.schema('arseny_learning_tracking')
+tracking= dj.VirtualModule('TRACKING', 'arseny_learning_tracking')
+#grooming= tracking.VideoGroomingTrail()
+
+exp2= dj.schema('arseny_s1alm_experiment2')
+exp2= dj.VirtualModule ('EXP2', 'arseny_s1alm_experiment2')
+#behaviortrail= exp2vm.BehaviorTrial
+#behaviortrailevent= exp2vm.BehaviorTrailEvent
+#actionevent= exp2vm.ActionEvent
+
+lick2dtalp= dj.schema('talch012_lick2dtalp')
+lick2dtal= dj.VirtualModule('Lick2DtalP', 'talch012_lick2dtalp')
+
+#from ipynb.fs.full.fn_parse_into_trials_and_get_lickrate_tal_1 import fn_parse_into_trials_and_get_lickrate_tal_1
+#from ipynb.fs.full.lick2dtalp.ROILick2DPSTHSpikes import rel_data, rel_temp, flag_eletric_video, fr_interval_limit, fr_interval, time_resample_bin 
+# real_data comes from img.roispike that has the key 'spikes_trace'= deconvolved trace for each frame
+
+# discard the first and last trails
+# session epoch trail comes from the table in the same name that describe behave only, behav photo, spint only and spont photo
+# whould it be esier to import the psth_mean_stem function?
+schema=dj.Schema('talch012_Lick2DtalP')
+
+@schema
+class ROILick2DPSTHStatsSpikes(dj.Computed):
+    definition = """
+    -> exp2.SessionEpoch
+    -> img.ROI 
+    ---
+    psth_regular_odd_vs_even_corr: float   # stability
+    psth_small_odd_vs_even_corr: float   # stability
+    psth_large_odd_vs_even_corr: float   # stability
+    psth_regular_vs_small_corr: float   # correlation
+    psth_regular_vs_large_corr: float   # correlation
+    psth_small_vs_large_corr: float   # correlation
+    peaktime_psth_regular: float   # peak time of the psth during regular reward trials
+    peaktime_psth_regular_odd: float
+    peaktime_psth_regular_even: float
+    peaktime_psth_small: float   # during no rewarded trials
+    peaktime_psth_large: float   # during trials with large reward
+    reward_mean_small: float   # averaged across trial time
+    reward_mean_regular: float
+    reward_mean_large: float
+    reward_mean_pval_regular_small: float
+    reward_mean_pval_regular_large: float
+    reward_mean_pval_small_large: float
+    reward_peak_small: float   # response at peak. peak determined based on full psth
+    reward_peak_regular: float
+    reward_peak_large: float
+    reward_peak_pval_regular_small: float
+    reward_peak_pval_regular_large: float
+    reward_peak_pval_small_large: float
+    """
+
+    # Set the master table
+    #master = schema.ROILick2DPSTHSpikes
+
+    def make(self, key):
+        # Implement the logic to populate the table here
+        pass
+
+@schema
+class ROILick2DPSTHBlockSpikes(dj.Computed):
+    definition = """
+    # Description of ROILick2DPSTHBlockSpikes
+    -> exp2.SessionEpoch 
+    -> img.ROI
+    ---
+    psth_first: longblob   # PSTH averaged across block first trials
+    psth_first_odd: longblob   # odd first trials
+    psth_first_even: longblob   # even first trials
+
+    psth_begin: longblob   # PSTH averaged across block beginning trials
+    psth_begin_odd: longblob   
+    psth_begin_even: longblob
+
+    psth_mid: longblob   # PSTH averaged across block mid trials
+    psth_mid_odd: longblob   
+    psth_mid_even: longblob
+
+    psth_end: longblob   # PSTH averaged across block end trials
+    psth_end_odd: longblob   
+    psth_end_even: longblob
+
+    psth_first_stem: longblob   # PSTH standard error of the mean
+    psth_begin_stem: longblob   
+    psth_mid_stem: longblob   
+    psth_end_stem: longblob
+    """
+
+    def make(self, key):
+        # Code to compute and populate ROILick2DPSTHBlockSpikes
+        pass
+
+@schema
+class ROILick2DPSTHBlockStatsSpikes(dj.Computed):
+    definition = """
+    # Description of ROILick2DPSTHBlockStatsSpikes
+    -> exp2.SessionEpoch
+    -> img.ROI
+    ---
+    psth_first_odd_vs_even_corr: float   # stability
+    psth_begin_odd_vs_even_corr: float   # stability
+    psth_mid_odd_vs_even_corr: float   # stability
+    psth_end_odd_vs_even_corr: float   # stability
+
+    psth_first_vs_begin_corr: float   # correlation between conditions
+    psth_first_vs_mid_corr: float   # correlation
+    psth_first_vs_end_corr: float   # correlation
+    psth_begin_vs_end_corr: float   # correlation
+    psth_begin_vs_mid_corr: float   # correlation
+    psth_mid_vs_end_corr: float   # correlation
+
+    peaktime_psth_first: float   # first trials in block
+    peaktime_psth_begin: float   # trials in the beginning of the block
+    peaktime_psth_mid: float   # trials in the middle of the block
+    peaktime_psth_end: float   # trials in the end of the block
+
+    block_mean_first: float   # averaged across trial time, and cells
+    block_mean_begin: float   #
+    block_mean_mid: float   #
+    block_mean_end: float   #
+    block_mean_pval_first_begin: float   #
+    block_mean_pval_first_end: float   #
+    block_mean_pval_begin_end: float   #
+
+    block_peak_first: float   # response at peak. peak determined based on full psth, averaged across cells
+    block_peak_begin: float   #
+    block_peak_mid: float   #
+    block_peak_end: float   #
+    block_peak_pval_first_begin: float   #
+    block_peak_pval_first_end: float   #
+    block_peak_pval_begin_end: float   #
+    """
+
+    def make(self, key):
+        # Code to compute and populate ROILick2DPSTHBlockStatsSpikes
+        pass
+
+    #@staticmethod
+    #def calculate_stats(lick_table):
+        # Perform calculations and return the calculated values
+     #   pass
+
+    #key_source = IMG.ROI() * ROILick2DPSTHSpikes()
+
+    #def make(self, key):
+        # Fetch data from ROILick2DPSTHSpikes table
+     #   lick_table = ROILick2DPSTHSpikes() & key
+
+        # Perform calculations based on lick_table
+      #  stats_data = self.calculate_stats(lick_table)
+
+        # Populate ROILick2DPSTHStatsSpikes table with the calculated data
+       # self.insert1({**key, **stats_data})
+
+
+@schema
+class ROILick2DPSTHSpikes(dj.Imported):
+    definition = """   
+    #
+    -> exp2.SessionEpoch
+    -> img.ROI
+    ---
+    psth_regular             : blob   # averaged over all positions, during trials with typical reward
+    psth_regular_odd         : blob   # averaged over all positions, during odd trials with typical reward
+    psth_regular_even        : blob   # averaged over all positions, during odd trials with typical reward
+
+    psth_small=null          : blob   # during no rewarded trials
+    psth_small_odd=null      : blob   # during no rewarded trials
+    psth_small_even=null     : blob   # during no rewarded trials
+
+    psth_large=null          : blob   # during trials with large reward
+    psth_large_odd=null      : blob   # during trials with large reward
+    psth_large_even=null     : blob   # during trials with large reward
+
+    psth_regular_stem        : blob   # standard error of the mean
+    psth_small_stem=null     : blob   # 
+    psth_large_stem=null     : blob   # 
+
+    psth_time                : longblob   # time vector
+    """
+
+        # in python use * insted of & to attach tables 
+    #key_source = (exp2.SessionEpoch * img.FOV) * img.ROI * img.ROISpikes * 
+     #           exp2.TrialLickPort & 'session_epoch_type="behav_only"' * 
+      #          exp2.TrialLickBlock * img.Mesoscope
+    
+    key_source = (exp2.SessionEpoch * img.FOV) & img.ROI & img.ROISpikes & exp2.TrialLickPort & 'session_epoch_type="behav_only"' & exp2.TrialLickBlock & img.Mesoscope
+
+    def make(self, key):
+        flag_electric_video = 1 # detect licks with electric contact or video (if available) 1 - electric, 2 - video
+        rel_data = img.ROISpikes
+        rel_temp = img.Mesoscope & key
+        if len(rel_temp) > 0: # if it's mesoscope data
+            fr_interval = [-2, 5] # change the time intrval according to the component or mode you are intersted in
+            fr_interval_limit = [-2, 5] # for comparing firing rates between conditions and computing firing-rate maps
+        else:  # if it's not mesoscope data
+            fr_interval = [-1, 4]
+            fr_interval_limit = [0, 3] # for comparing firing rates between conditions and computing firing-rate maps
+        time_resample_bin = []
+        session_epoch_type = key['session_epoch_type']
+        session_epoch_number = key['session_epoch_number']
+        # table ROILick2DPSTHStatSpikes
+
+        # all tables being populated:
+        #self= ROILick2DPSTHSpikes()
+        self2 = ROILick2DPSTHStatsSpikes()
+        self3 = ROILick2DPSTHBlockSpikes()
+        self4 = ROILick2DPSTHBlockStatsSpikes()
+        dj.config["display_progress"] = True
+        print(key)
+        from fn_computer_Lick2DPSTH1 import fn_computer_Lick2DPSTH2
+        fn_computer_Lick2DPSTH2(key, self, rel_data, fr_interval, fr_interval_limit, flag_electric_video, time_resample_bin, session_epoch_type, session_epoch_number, self2, self3, self4)
+        #fn_compute_Lick2DPSTH(key, self, rel_data, fr_interval, fr_interval_limit, 
+                       # flag_electric_video, time_resample_bin, self2, self3, self4)
+
+
+
+#in anconda, install nbformat to your environment
+import nbformat
+ROILick2DPSTHSpikes.populate()
+import os
+import matplotlib.pyplot as plt
+
+data = ROILick2DPSTHSpikes.fetch(as_dict=True)
+data1 = (img.ROISpikes & (img.ROI-img.ROIBad)).fetch(as_dict=True)
+block = ROILick2DPSTHBlockSpikes.fetch(as_dict=True)
+datastat = ROILick2DPSTHStatsSpikes.fetch(as_dict=True)
+blockstat = ROILick2DPSTHBlockStatsSpikes.fetch(as_dict=True)
+uid = (img.ROI-img.ROIBad).fetch('roi_number_uid')
+
+
+save_dir = 'G:\Shared drives\FinkelsteinLab\People\TalChamilevsky\meso_single_cells\py'
+
+unique_subject_ids = list(set([d['subject_id'] for d in data]))
+unique_session = list(set([d['session'] for d in data]))
+
+
+# Iterate over unique session values
+for i, target_session in enumerate(unique_session):
+
+    # Find rows with the same session
+    # rows = data[data['session'] == target_session]
+    # rows1 = block[block['session'] == target_session]
+    # rows2 = datastat[datastat['session'] == target_session]
+    # rows3 = blockstat[blockstat['session'] == target_session]
+    # rows4 = uid[(uid['session'] == target_session) & (uid['roi_number'] == rows['roi_number'])]
+
+    rows = [d for d in data if d['session'] == target_session]
+    rows1 = [d for d in block if d['session'] == target_session]
+    rows2 = [d for d in datastat if d['session'] == target_session]
+    rows3 = [d for d in blockstat if d['session'] == target_session]
+    rows4 = [d for d in uid if d['session'] == target_session]
+
+    num_rows = min(2, len(rows))
+
+    for j in range(num_rows):
+        row_data = rows[j]
+        row_block = rows1[j]
+        row_d_stats = rows2[j]
+        row_b_stats = rows3[j]
+        row_uid = next((d for d in rows4 if d['subject_id'] == row_d_stats['subject_id'] and d['roi_number'] == row_d_stats['roi_number']), None)
+
+    # Iterate over the selected rows
+    for j, (row_data, row_block, row_d_stats, row_b_stats, row_uid) in enumerate(zip(rows, rows1, rows2, rows3, rows4)):
+        subject_id = row_data['subject_id']
+        session = row_data['session']
+        roi_number = row_data['roi_number']
+        roi_number_uid = row_uid['roi_number_uid']
+
+        # Generate the title for the whole figure
+        fig_title = f"Subject ID: {subject_id}, Session: {session}, ROI Number: {roi_number}, ROI Number UID: {roi_number_uid}"
+
+        # Generate the filename for the saved figure
+        filename = f"Subject_{subject_id}_Session_{session}_ROI_{roi_number}_UID_{roi_number_uid}.png"
+
+        # Create a new figure for each iteration
+        fig, axs = plt.subplots(3, 1, figsize=(8, 10))
+        fig.suptitle(fig_title, fontsize=14, fontweight='bold')
+
+        psth_regular = row_data['psth_regular']
+        psth_regular_odd = row_data['psth_regular_odd']
+        psth_regular_even = row_data['psth_regular_even']
+        psth_time = row_data['psth_time']
+        psth_first = row_block['psth_first']
+        psth_begin = row_block['psth_begin']
+        psth_mid = row_block['psth_mid']
+        psth_end = row_block['psth_end']
+        psth_small = row_data['psth_small']
+        psth_large = row_data['psth_large']
+
+        # Plot the data and customize the subplots
+        axs[0].plot(psth_time, psth_regular, 'b', linewidth=1.5)
+        axs[0].plot(psth_time, psth_regular_odd, color='lightblue', linewidth=1.5)
+        axs[0].plot(psth_time, psth_regular_even, color='lightblue', linewidth=1.5)
+        axs[0].set_title('Regular')
+
+        axs[1].plot(psth_time, psth_first, 'c', linewidth=1.5)
+        axs[1].plot(psth_time, psth_begin, 'm', linewidth=1.5)
+        axs[1].plot(psth_time, psth_mid, color='deepskyblue', linewidth=1.5)
+        axs[1].plot(psth_time, psth_end, 'k', linewidth=1.5)
+        axs[1].set_title('Block')
+
+        axs[2].plot(psth_time, psth_small, 'c', linewidth=1.5)
+        axs[2].plot(psth_time, psth_regular, color='deepskyblue', linewidth=1.5)
+        axs[2].plot(psth_time, psth_large, 'm', linewidth=1.5)
+        axs[2].set_title('Reward')
+
+        # Customize the axes, labels, and legends
+        for ax in axs:
+            #ax.set_ylim(minv, maxv)
+            ax.set_xlabel('Time to Lick')
+            ax.set_ylabel('amp')
+            ax.legend(loc='upper right')
+
+        
+        ann_psth_first_vs_begin = f"first vs. begin  r= {row_b_stats['psth_first_vs_begin_corr']:.04f}, p-value= {row_b_stats['block_peak_pval_first_begin']:.04f}"
+        ann_psth_first_vs_mid = f"first vs. mid  r= {row_b_stats['psth_first_vs_mid_corr']:.04f}"
+        ann_psth_first_vs_end = f"first vs. end  r= {row_b_stats['psth_first_vs_end_corr']:.04f}, p-value= {row_b_stats['block_peak_pval_first_end']:.04f}"
+        ann_psth_begin_vs_end = f"begin vs. end  r= {row_b_stats['psth_begin_vs_mid_corr']:.04f}"
+        ann_psth_begin_vs_mid = f"begin vs. mid  r= {row_b_stats['psth_begin_vs_end_corr']:.04f}, p-value= {row_b_stats['block_peak_pval_begin_end']:.04f}"
+        ann_psth_mid_vs_end = f"mid vs. end  r= {row_b_stats['psth_mid_vs_end_corr']:.04f}"
+        uid_text = f"Subject ID: {row_uid['subject_id']}, ROI Number: {row_uid['roi_number']}"
+
+        # Add the annotation textbox
+        annotation_text = f"{ann_psth_first_vs_begin}\n{ann_psth_first_vs_mid}\n{ann_psth_first_vs_end}\n{ann_psth_begin_vs_end}\n{ann_psth_begin_vs_mid}\n{ann_psth_mid_vs_end}"
+        fig.text(0.75, 0.5, annotation_text, fontsize=10, verticalalignment='center', bbox=dict(facecolor='none', edgecolor='none', boxstyle='round,pad=0.5'))
+
+        # Save the figure
+        fig.savefig(os.path.join(save_dir, filename))
+
+        # Close the figure
+        plt.close(fig)
+
+# #
+# for i in range(len(unique_session)):
+#     target_session = unique_session[i]
+
+#     rows = [d for d in data if d['session'] == target_session]
+#     rows1 = [d for d in block if d['session'] == target_session]
+#     rows2 = [d for d in datastat if d['session'] == target_session]
+#     rows3 = [d for d in blockstat if d['session'] == target_session]
+#     rows4 = [d for d in uid if d['session'] == target_session]
+
+#     num_rows = min(200, len(rows))
+
+#     for j in range(num_rows):
+#         row_data = rows[j]
+#         row_block = rows1[j]
+#         row_d_stats = rows2[j]
+#         row_b_stats = rows3[j]
+#         row_uid = next((d for d in rows4 if d['subject_id'] == row_d_stats['subject_id'] and d['roi_number'] == row_d_stats['roi_number']), None)
+
+#         psth_regular = row_data['psth_regular']
+#         psth_regular_odd = row_data['psth_regular_odd']
+#         psth_regular_even = row_data['psth_regular_even']
+#         psth_time = row_data['psth_time']
+#         psth_first = row_block['psth_first']
+#         psth_begin = row_block['psth_begin']
+#         psth_mid = row_block['psth_mid']
+#         psth_end = row_block['psth_end']
+#         psth_small = row_data['psth_small']
+#         psth_large = row_data['psth_large']
+
+#         minv = min(min(psth_regular), min(psth_small), min(psth_large), min(psth_first), min(psth_begin), min(psth_mid), min(psth_end))
+#         maxv = max(max(psth_regular), max(psth_small), max(psth_large), max(psth_first), max(psth_begin), max(psth_mid), max(psth_end))
+
+#         titlestats_regular_small = f"\\fontsize{{6}}regular vs. small  r= {row_d_stats['psth_regular_vs_small_corr']:.04f}, p-value= {row_d_stats['reward_mean_pval_regular_small']:.04f}"
+#         titlestats_regular_large = f"\\fontsize{{6}}regular vs. large  r= {row_d_stats['psth_regular_vs_large_corr']:.04f}, p-value= {row_d_stats['reward_mean_pval_regular_large']:.04f}"
+
+#         titlestats_regular_small = f"\\fontsize{{6}}regular vs. small  r= {row_d_stats['psth_regular_vs_small_corr']:.04f}, p-value= {row_d_stats['reward_mean_pval_regular_small']:.04f}"
+#         titlestats_regular_large = f"\\fontsize{{6}}regular vs. large  r= {row_d_stats['psth_regular_vs_large_corr']:.04f}, p-value= {row_d_stats['reward_mean_pval_regular_large']:.04f}"
+#         titlestats_large_small = f"\\fontsize{{6}}small vs. large  r= {row_d_stats['psth_small_vs_large_corr']:.04f}, p-value= {row_d_stats['reward_mean_pval_small_large']:.04f}"
+#         titlereg = f"\\fontsize{{6}}r= {row_d_stats['psth_regular_odd_vs_even_corr']:.04f}"
+
+#         ann_psth_first_vs_begin = f"first vs. begin  r= {row_b_stats['psth_first_vs_begin_corr']:.04f}, p-value= {row_b_stats['block_peak_pval_first_begin']:.04f}"
+#         ann_psth_first_vs_mid = f"first vs. mid  r= {row_b_stats['psth_first_vs_mid_corr']:.04f}"
+#         ann_psth_first_vs_end = f"first vs. end  r= {row_b_stats['psth_first_vs_end_corr']:.04f}, p-value= {row_b_stats['block_peak_pval_first_end']:.04f}"
+#         ann_psth_begin_vs_end = f"begin vs. end  r= {row_b_stats['psth_begin_vs_mid_corr']:.04f}"
+#         ann_psth_begin_vs_mid = f"begin vs. mid  r= {row_b_stats['psth_begin_vs_end_corr']:.04f}, p-value= {row_b_stats['block_peak_pval_begin_end']:.04f}"
+#         ann_psth_mid_vs_end = f"mid vs. end  r= {row_b_stats['psth_mid_vs_end_corr']:.04f}"
+#         uid_text = f"Subject ID: {row_uid['subject_id']}, ROI Number: {row_uid['roi_number']}"
+
+#         # Create a new figure for each row
+#         plt.figure(figsize=(8, 10))
+#         plt.suptitle(f"Session {target_session}\n{uid_text}", fontsize=14, fontweight='bold')
+#        # Generate the title
+#         title = f"Subject ID: {subject_id}, Session: {target_session}, ROI Number: {roi_number}, ROI Number UID: {roi_number_uid}"
+#         # Generate the filename
+#         filename = f"Session_{target_session}_Subject_{subject_id}_ROI_{roi_number}_UID_{roi_number_uid}.png"
+
+
+#         plt.subplot(3, 1, 1)
+#         plt.plot(psth_time, psth_regular, 'b', linewidth=1.5)
+#         plt.plot(psth_time, psth_regular_odd, color='skyblue', linewidth=1.5)
+#         plt.plot(psth_time, psth_regular_even, color='skyblue', linewidth=1.5)
+#         plt.title(f"Regular\n{titlereg}", fontsize=8)
+#         plt.legend(['regular', 'odd', 'even'], loc='best')
+#         plt.ylim(minv, maxv)
+#         plt.xlabel('Time to Lick')
+#         plt.ylabel('amp')
+
+#         plt.subplot(3, 1, 2)
+#         plt.plot(psth_time, psth_first, 'c', linewidth=1.5)
+#         plt.plot(psth_time, psth_begin, 'm', linewidth=1.5)
+#         plt.plot(psth_time, psth_mid, color='navy', linewidth=1.5)
+#         plt.plot(psth_time, psth_end, 'k', linewidth=1.5)
+#         plt.legend(['First', 'Begin', 'Mid', 'End'], loc='best')
+#         plt.ylim(minv, maxv)
+#         plt.figure(figsize=(8, 10))
+#         plt.suptitle(f"Session {target_session}", fontsize=14, fontweight='bold')
+
+#         plt.subplot(3, 1, 1)
+#         plt.plot(psth_time, psth_regular, 'b', linewidth=1.5)
+#         plt.plot(psth_time, psth_regular_odd, color='skyblue', linewidth=1.5)
+#         plt.plot(psth_time, psth_regular_even, color='skyblue', linewidth=1.5)
+#         plt.title(f"Regular\n{titlereg}", fontsize=8)
+#         plt.legend(['regular', 'odd', 'even'], loc='best')
+#         plt.ylim(minv, maxv)
+#         plt.xlabel('Time to Lick')
+#         plt.ylabel('amp')
+
+#         plt.subplot(3, 1, 2)
+#         plt.plot(psth_time, psth_first, 'c', linewidth=1.5)
+#         plt.plot(psth_time, psth_begin, 'm', linewidth=1.5)
+#         plt.plot(psth_time, psth_mid, color='navy', linewidth=1.5)
+#         plt.plot(psth_time, psth_end, 'k', linewidth=1.5)
+#         plt.legend(['First', 'Begin', 'Mid', 'End'], loc='best')
+#         plt.ylim(minv, maxv)
+#         plt.xlabel('Time to Lick')
+#         plt.ylabel('amp')
+
+#         plt.subplot(3, 1, 3)
+#         plt.plot(psth_time, psth_small, color='c', linewidth=1.5)
+#         plt.plot(psth_time, psth_regular, color='navy', linewidth=1.5)
+#         plt.plot(psth_time, psth_large, 'm', linewidth=1.5)
+#         plt.legend(['Small', 'Regular', 'Large'], loc='best')
+#         plt.ylim(minv, maxv)
+#         plt.xlabel('Time to Lick')
+#         plt.ylabel('amp')
+
+#         plt.subplots_adjust(top=0.9, bottom=0.1)
+#         plt.savefig(os.path.join(save_dir, f'session_{target_session}_row_{j+1}_uid{}.png'))
+#         plt.close()
+
+dj.config["display_progress"] = True
+talp=dj.schema('talch012_Lick2DtalP')
+talp= dj.VirtualModule('Lick2DtalP', 'talch012_Lick2DtalP')
+
+talp.ROILick2DPSTHSpikes.drop()
+
+print(ROILick2DPSTHStatsSpikes())
+
+#print(ROILick2DPSTHSpikes())
+#print(ROILick2DPSTHBlockStatsSpikes())
+#print(ROILick2DPSTHBlockSpikes())
+print(ROILick2DPSTHStatsSpikes())
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Fetch the data from the table
+data = lick2dA.ROILick2DPSTHSpikes.fetch(as_dict=True, limit=10)
+
+for i, row in enumerate(data):
+    psth_regular = row['psth_regular']
+    psth_time = row['psth_time']
+    psth_regular_stem = row['psth_regular_stem']
+
+    # Create a new figure for each plot
+    plt.figure()
+    
+    # Plot the shaded region
+    plt.fill_between(psth_time, psth_regular - psth_regular_stem, psth_regular + psth_regular_stem, color='blue', alpha=0.3)
+    
+    # Plot the line
+    plt.plot(psth_time, psth_regular, color='blue')
+    
+    # Add labels to the plot
+    plt.title(f'Plot {i+1}')
+    plt.xlabel('Time')
+    plt.ylabel('PSTH Regular')
+    
+    # Add any additional customization to the plot here
+    
+    # Show the plot
+    plt.show()
+
+print(ROILick2DPSTHBlockStatsSpikes())
+schema=dj.Schema('talch012_Lick2DtalP')
+
+@schema
+class FakeROILick2DPSTH(dj.Computed):
+    definition = """
+    # Description of ROILick2DPSTHBlockStatsSpikes
+    -> exp2.SessionEpoch
+    -> img.ROI
+    ---
+    psth_regular             : blob   # averaged over all positions, during trials with typical reward
+    psth_small=null          : blob   # during no rewarded trials
+    psth_large=null          : blob   # during trials with large reward
+    psth_regular_stem        : blob   # standard error of the mean
+    psth_time                : longblob   # time vector
+ 
+    """
+
+    def make(self, key):
+        # Code to compute and populate 
+        pass
+lick2dA= dj.schema('arseny_learning_lick2d')
+lick2dA= dj.VirtualModule('LICK2D', 'arseny_learning_lick2d')
+
+
+# how one cell change accorss trials and how one cell act on avarage 
+
+key = {'session': 3, 'roi_number': 1}
+
+#choose all the rows that are the same cell (accross trials)
+try1= (lick2dA.ROILick2DPSTHSpikes & key).fetch('psth_regular')
+print(try1)
+
+#choose all the rows that are the same trial within the session
+# Assuming the table is named 'MyTable'
+# Define the index of the session, roi_number, and subject_id
+session_index = 3  # Assuming the desired session index is 1
+roi_number = 1  # Assuming the desired ROI number is 1
+subject_id_index = 0  # Assuming the desired subject ID index is 0
+
+# Fetch the 'psth_regular' column for the specified session, roi_number, and subject_id index
+result = lick2dA.ROILick2DPSTHSpikes.fetch(as_dict=True)
+filtered_results = [r for r in result if r['session'] == session_index and r['roi_number'] == roi_number]
+psth_regular = filtered_results[subject_id_index]['psth_regular'] if filtered_results else None
+print(psth_regular)
+plt.plot(psth_regular)
+plt.xlabel('Time')
+plt.title('PSTH Plot')
+plt.show()
+import matplotlib.pyplot as plt
+
+# Assuming the table name is 'MyTable'
+# Specify the conditions for session and roi_number
+condition = {
+    'session': 3,
+    'roi_number': 1
+}
+
+# Fetch the matching subject_id values
+subject_ids = (lick2dA.ROILick2DPSTHSpikes & condition).fetch('subject_id', as_dict=True)
+
+# Iterate over the subject_ids
+for subject_id in subject_ids:
+    # Update the condition with the current subject_id
+    condition['subject_id'] = subject_id
+    
+    # Fetch the psth_regular values for the current subject_id
+    psth_regular = (lick2dA.ROILick2DPSTHSpikes & condition).fetch('psth_regular')
+    
+    # Plot the psth_regular values
+    plt.plot(psth_regular, label=f"Subject {subject_id}")
+
+# Add labels and legend to the plot
+plt.xlabel('Time')
+plt.ylabel('PSTH')
+plt.legend()
+
+# Display the plot
+plt.show()
+
+condition = {
+    'session': 3,
+    'roi_number': 1,
+    'subject_id':   # Replace with the actual subject_id you want to query
+}
+
+# Fetch the 'psth_regular' values
+psth_regular = (lick2dA.ROILick2DPSTHSpikes & condition).fetch1('psth_regular')
+
+# Print the 'psth_regular' values
+print(psth_regular)
+
+exp2.BehaviorTrial
+xxxx= (img.FOV).fetch('imaging_frame_rate')[1]
+print(xxxx)
+print(exp2.BehaviorTrial.Event())
+lick2dtalM= dj.schema('talch012_LICK2Dtal')
+lick2dtalM= dj.VirtualModule('LICK2Dtal', 'talch012_LICK2Dtal')
+
+ROILick2DPSTHSpikes1=dj.schema('talch012_Lick2DtalP')
+ROILick2DPSTHSpikesVM=dj.VirtualModule('ROILick2DPSTHSpikes', 'talch012_Lick2DtalP')
+#ROILick2DPSTHSpikes2=ROILick2DPSTHSpikes1.ROILick2DPSTHStatsSpikes.describe()
+ROILick2DPSTHStatsSpikesVM=dj.VirtualModule('ROILick2DPSTHStatsSpikes', 'talch012_Lick2DtalP')
+ROILick2DPSTHBlockSpikesVM=dj.VirtualModule('ROILick2DPSTHBlockSpikes', 'talch012_Lick2DtalP')
+ROILick2DPSTHBlockStatsSpikesVM=dj.VirtualModule('ROILick2DPSTHBlockStatsSpikes', 'talch012_Lick2DtalP')
+        # %run fn_computer_Lick2DPSTH.py
+
+print(ROILick2DPSTHBlockStatsSpikes())
+print(ROILick2DPSTHSpikes.describe())
+print(ROILick2DPSTHStatsSpikes.describe())
+print(ROILick2DPSTHBlockSpikes.describe())
+import matplotlib.pyplot as plt
+
+# Assuming you have a list of data or a dataset
+data = [...]  # Your dataset
+
+# Get the total number of rows or items in the dataset
+total_rows = len(data)
+
+# Set the batch size
+batch_size = 100
+
+# Iterate over the dataset with the given batch size
+for i in range(0, total_rows, batch_size):
+    # Extract the current batch of data
+    current_batch = data[i:i+batch_size]
+
+    # Perform the necessary processing on the current batch
+    processed_data = process_data(current_batch)
+
+    # Generate a plot based on the processed data
+    plt.plot(processed_data)
+    plt.xlabel('X-axis label')
+    plt.ylabel('Y-axis label')
+    plt.title('Plot for cell {}'.format(rn//table_size + 1))
+    plt.show()
+
+lick2dA= dj.schema('arseny_learning_lick2d')
+lick2dA= dj.VirtualModule('LICK2D', 'arseny_learning_lick2d')
+
+# Fetch the first four (five?) table entries
+#PSTHspikes = lick2dA.ROILick2DPSTHSpikes
+#total_rows = len(100)
+table_size = 100
+psthSes= [None] * 101
+for rn in range(101):
+    psthSes = lick2dA.ROILick2DPSTHSpikes.fetch()[rn]
+    current_row=psthSes[rn:rn+table_size]
+    # Get names of all fields in the structured array
+    # ('subject_id', 'session', 'session_epoch_type', 'session_epoch_number', 'fov_num', 'plane_num', 'channel_num', 'roi_number', 'psth_regular', 'psth_regular_odd', 'psth_regular_even', 'psth_small', 'psth_small_odd', 'psth_small_even', 'psth_large', 'psth_large_odd', 'psth_large_even', 'psth_regular_stem', 'psth_small_stem', 'psth_large_stem', 'psth_time'
+    data_type = psthSes.dtype
+    field_names = data_type.names 
+    # Plot Regular traces for each cell
+    cell = psthSes['roi_number']-1 # cell number (0:4)
+    #trialType = field_names[8:-3] #('psth_regular','psth_small','psth_large')
+    trial_type_wError = [(name, name.replace("_odd", "_stem").replace("_even", "_stem")) if "even" in name or "odd" in name  else (name, f"{name}_stem") for name in field_names[8:17]]
+
+    colors = ['#1B2ACC','#CC4F1B','#3F7F4C','indianred'] #'#FF9848', '#089FFF',
+    for type, type_err in trial_type_wError:
+        for trace in cell:
+            error = psthSes[type_err][trace][0]
+            x = psthSes['psth_time'][trace][0]
+            y = psthSes[type][trace][0]
+            plt.plot(x,y,'-k',color=colors[trace],label = (type, trace+1))
+            plt.fill_between(x,y, y-error, y+error, alpha=0.2, linewidth = 0)
+            #plt.errorbar(psthSes['psth_time'][trace][0], psthSes[type][trace][0], yerr = psthSes[type_err][trace][0], label = (type, trace+1))
+            # plt.plot(psthSes['psth_regular_stem'][trace][0], label= ('Regular', trace+1))
+
+        # Add axis labels and title
+        plt.xlabel("Time (frames)")
+        plt.ylabel("Spike count")
+        #plt.title(f"{type} for cell {}'".format(rn//table_size + 1))
+        plt.title(f'{type} cell {rn}'.format(rn//table_size + 1))
+        #plt.xlim(0, np.max(psthSes[type][trace][0])*1.1)
+        plt.legend()
+        plt.show()
+# Plot Regular, Small, and Large traces for each cell
+
+colors = [['darkred', 'red', 'pink'],  # group 1
+          ['orange', 'gold', 'goldenrod',],  # group 2
+          ['green', 'seagreen', 'olivedrab']]  # group 3
+prevType = 'psth_small'
+for aCell in cell:
+    for i, (aType, anerror) in enumerate(trial_type_wError):
+        color_index = i // 3  # determine which group this trace belongs to
+        # Plot error margin and traces
+        error = psthSes[anerror][aCell][0]
+        x = psthSes['psth_time'][aCell][0]
+        y = psthSes[aType][aCell][0]
+        plt.plot(x,y,'-k',color=colors[color_index][i % 3],label = (aType, aCell+1))
+        plt.fill_between(x,y, y-error, y+error, alpha=0.2, linewidth = 0)
+        
+        # To plot just the traces without errors
+        #plt.plot(psthSes[aType][aCell][0], label=aType, color=colors[color_index][i % 3])
+
+        #pearson = stats.pearson3(psthSes[aType][aCell][0],psthSes[prevType][aCell][0])
+        #plt.text(-2.5, 0.5, ('P:',aType,'-',prevType,':', pearson), bbox=dict(facecolor='white', alpha=0.5))
+        prevType = aType
+
+    # Add axis labels and title
+    plt.xlabel("Time (frames)")
+    plt.ylabel("Spike count")
+    plt.title(f"PSTH for Cell {aCell+1}")
+    plt.legend()
+    plt.show()
